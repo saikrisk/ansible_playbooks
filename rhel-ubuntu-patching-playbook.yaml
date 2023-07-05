@@ -1,0 +1,66 @@
+---
+#### Ansible Playbook to perform Kernel Patching on RHEL/CentOS and Ubuntu/Debian Servers ####
+
+- name: Ansible Playbook to perform Patching on RHEL/CentOS and Ubuntu/Debian Servers
+  hosts: all
+  become: yes
+  serial: 5
+
+  tasks:
+    - name:  Task 1 - Performing patching on RHEL/CentOS and Ubuntu/Debian server
+      ansible.builtin.package:
+        name: '*'
+        #name: "zip"  # For testing
+        state: latest
+      register: package_update_status
+    - name: Task 1.1 - Package update status on RHEL/CentOS and Ubuntu/Debian server
+      ansible.builtin.debug:
+        msg: "Server {{ inventory_hostname }} has been patched"
+      when: package_update_status.changed == true
+
+    - name: Task 2 - Check if reboot is required after patching on RedHat/CentOS and Ubuntu/Debian server
+      ansible.builtin.shell: KERNEL_NEW=$(ls -lrt /boot/vmlinuz* | grep -v lrwxrwxrwx |tail -1| awk '{print $9}' | grep -Po '(?<=(/boot/vmlinuz-)).*'); KERNEL_NOW=$(uname -r); if [ $KERNEL_NEW != $KERNEL_NOW ]; then echo "reboot_needed"; else echo "reboot_not_needed"; fi
+      ignore_errors: true
+      register: reboot_required
+    - name: Task 2.1 - Kernel package update status on RedHat/CentOS and Ubuntu/Debian server
+      ansible.builtin.debug:
+        msg: "Server {{ inventory_hostname }} has been updated with latest kernel packages hence server reboot is required."
+      when: reboot_required.stdout == "reboot_needed"
+    - name: Task 2.2 - Kernel package update status on RedHat/CentOS and Ubuntu/Debian server
+      ansible.builtin.debug:
+        msg: "Server {{ inventory_hostname }} kernel version is up to date. Hence no reboot is required."
+      when: reboot_required.stdout == "reboot_not_needed"
+
+    - name: Task 3 - Reboot RedHat/CentOS and Ubuntu/Debian servers after kernel update
+      ansible.builtin.command: shutdown -r +1  "Rebooting the server after kernel update"
+      async: 0
+      poll: 0
+      when: reboot_required.stdout == "reboot_needed"
+      register: reboot_status
+      ignore_errors: true
+    - name: Task 3.1 - Server reboot status
+      ansible.builtin.debug:
+        msg: "Server {{ inventory_hostname }} reboot is in progress"
+      when: reboot_status.changed == true
+
+    - name: Task 4 - Pause for 120 secs as server reboot is in progress
+      ansible.builtin.pause:
+        minutes: 2
+      when: reboot_status.changed == true
+
+    - name: Task 5 - Check the server connectivity status
+      ansible.builtin.wait_for:
+        host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+        port: 22
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 180
+        state: started
+      vars:
+        ansible_connection: local
+      register: server_status
+    - name: Task 5.1 - Check the server connectivity status
+      ansible.builtin.debug:
+        msg: "Server {{ inventory_hostname }} is up and accessible"
+      when: server_status.state == "started"
+
