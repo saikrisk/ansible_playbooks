@@ -1,0 +1,1 @@
+# rhel-ubuntu-patching-playbook
