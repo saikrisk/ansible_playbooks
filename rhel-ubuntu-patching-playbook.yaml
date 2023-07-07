@@ -19,7 +19,7 @@
       when: package_update_status.changed == true
 
     - name: Task 2 - Check if reboot is required after patching on RedHat/CentOS and Ubuntu/Debian server
-      ansible.builtin.shell: KERNEL_NEW=$(ls -lrt /boot/vmlinuz* | grep -v lrwxrwxrwx |tail -1| awk '{print $9}' | grep -Po '(?<=(/boot/vmlinuz-)).*'); KERNEL_NOW=$(uname -r); if [ $KERNEL_NEW != $KERNEL_NOW ]; then echo "reboot_needed"; else echo "reboot_not_needed"; fi
+      ansible.builtin.shell: KERNEL_NEW=$(ls -l /boot/vmlinuz* | grep -v lrwxrwxrwx |tail -1| awk '{print $9}' | grep -Po '(?<=(/boot/vmlinuz-)).*'); KERNEL_NOW=$(uname -r); if [[ $KERNEL_NEW != $KERNEL_NOW ]]; then echo "reboot_needed"; else echo "reboot_not_needed"; fi
       ignore_errors: true
       register: reboot_required
     - name: Task 2.1 - Kernel package update status on RedHat/CentOS and Ubuntu/Debian server
